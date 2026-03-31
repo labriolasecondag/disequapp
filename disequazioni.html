@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Risolutore di Disequazioni</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=IBM+Plex+Sans:wght@300;400;700&display=swap');
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a26;--border:#2a2a40;--accent:#00e5ff;--accent2:#7c4dff;--red:#ff4455;--green:#00e5a0;--text:#e0e0f0;--muted:#6060a0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;padding:2rem 1rem;overflow-x:hidden}
+body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at 30% 20%,rgba(0,229,255,.04) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(124,77,255,.05) 0%,transparent 50%);pointer-events:none;z-index:0}
+.container{max-width:920px;margin:0 auto;position:relative;z-index:1}
+header{text-align:center;margin-bottom:3rem}
+h1{font-family:'IBM Plex Mono',monospace;font-size:clamp(1.8rem,5vw,2.8rem);font-weight:600;letter-spacing:-.02em;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem}
+.subtitle{color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.85rem;letter-spacing:.1em}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:2rem;margin-bottom:1.5rem;position:relative;overflow:hidden}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.input-row{display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap}
+.field{flex:1;min-width:220px}
+label{display:block;font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem}
+input[type=text]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:1.1rem;padding:.8rem 1rem;outline:none;transition:border-color .2s,box-shadow .2s}
+input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,255,.1)}
+.examples{margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.ex-lbl{font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--muted)}
+.etag{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.3rem .7rem;font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--muted);cursor:pointer;transition:all .2s}
+.etag:hover{border-color:var(--accent2);color:var(--accent)}
+.btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:8px;color:#000;font-family:'IBM Plex Mono',monospace;font-size:.9rem;font-weight:600;letter-spacing:.08em;padding:.85rem 2rem;cursor:pointer;white-space:nowrap;transition:opacity .2s,transform .1s}
+.btn:hover{opacity:.9}
+.btn:active{transform:scale(.97)}
+.result-panel,.graph-panel{display:none;animation:si .3s ease}
+.result-panel.vis,.graph-panel.vis{display:block}
+@keyframes si{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.plabel{font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1.25rem}
+.steps{display:flex;flex-direction:column;gap:.75rem}
+.step{display:flex;gap:1rem;align-items:flex-start}
+.sn{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#000;font-family:'IBM Plex Mono',monospace;font-size:.7rem;font-weight:600;display:flex;align-items:center;justify-content:center;margin-top:.15rem}
+.st{font-size:.95rem;line-height:1.6}
+.st code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.1rem .4rem;font-family:'IBM Plex Mono',monospace;color:var(--accent);font-size:.9em}
+.sol-box{margin-top:1.5rem;background:var(--surface2);border:1px solid var(--green);border-radius:8px;padding:1rem 1.5rem;display:flex;align-items:center;gap:1rem}
+.sol-box.err{border-color:var(--red)}
+.sol-ico{font-size:1.5rem}
+.sol-t{font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.25rem}
+.sol-v{font-family:'IBM Plex Mono',monospace;font-size:1.15rem;color:var(--green);font-weight:600}
+.sol-box.err .sol-v{color:var(--red)}
+canvas{width:100%;border-radius:8px;display:block}
+.nl-wrap{margin-top:1.5rem}
+.nl-lbl{font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>∫ disequazioni</h1>
+    <p class="subtitle">// risolutore con soluzione passo-passo + grafico</p>
+  </header>
+
+  <div class="panel">
+    <div class="input-row">
+      <div class="field">
+        <label>Inserisci la disequazione</label>
+        <input type="text" id="inp" placeholder="es. 2x + 3 > 7" autocomplete="off"/>
+      </div>
+      <button class="btn" onclick="solve()">RISOLVI →</button>
+    </div>
+    <div class="examples">
+      <span class="ex-lbl">esempi:</span>
+      <span class="etag" onclick="ex('2x + 3 > 7')">2x+3 &gt; 7</span>
+      <span class="etag" onclick="ex('x^2 - 4 <= 0')">x²-4 ≤ 0</span>
+      <span class="etag" onclick="ex('-3x + 6 >= 0')">-3x+6 ≥ 0</span>
+      <span class="etag" onclick="ex('x^2 - 5x + 6 > 0')">x²-5x+6 &gt; 0</span>
+      <span class="etag" onclick="ex('(x-1)*(x+3) < 0')">(x-1)(x+3) &lt; 0</span>
+      <span class="etag" onclick="ex('x^2 + 1 > 0')">x²+1 &gt; 0</span>
+      <span class="etag" onclick="ex('x^3 - x < 0')">x³-x &lt; 0</span>
+    </div>
+  </div>
+
+  <div class="panel result-panel" id="rpanel">
+    <div class="plabel">// soluzione passo-passo</div>
+    <div class="steps" id="steps"></div>
+    <div class="sol-box" id="solbox">
+      <div class="sol-ico">✓</div>
+      <div>
+        <div class="sol-t">Soluzione</div>
+        <div class="sol-v" id="solv"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel graph-panel" id="gpanel">
+    <div class="plabel">// grafico — f(x) = lhs − rhs</div>
+    <canvas id="gc" height="300"></canvas>
+    <div class="nl-wrap">
+      <div class="nl-lbl">// retta dei numeri — zona soluzione</div>
+      <canvas id="nl" height="64"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+function ex(v){ document.getElementById('inp').value=v; solve(); }
+document.getElementById('inp').addEventListener('keydown',e=>{ if(e.key==='Enter') solve(); });
+
+function fmt(n){
+  if(!isFinite(n)) return n>0?'+∞':'-∞';
+  if(Math.abs(n)<1e-9) return '0';
+  // Try to display as fraction if close
+  for(let d=1;d<=20;d++){
+    const num=Math.round(n*d);
+    if(Math.abs(num/d-n)<1e-9 && Math.abs(num)<1000){
+      if(d===1) return String(num);
+      return `${num}/${d}`;
+    }
+  }
+  return parseFloat(n.toFixed(4)).toString();
+}
+
+function checkOp(v,op){
+  if(op==='>') return v>1e-10;
+  if(op==='>=') return v>=-1e-10;
+  if(op==='<') return v<-1e-10;
+  if(op==='<=') return v<=1e-10;
+}
+
+function findRoots(f,lo,hi,n=2000){
+  const roots=[];
+  const step=(hi-lo)/n;
+  let prev=f(lo);
+  for(let i=1;i<=n;i++){
+    const x=lo+i*step;
+    const cur=f(x);
+    if(isNaN(prev)||isNaN(cur)){prev=cur;continue;}
+    if(prev*cur<=0){
+      // bisect
+      let a=x-step,b=x,fa=prev,fb=cur;
+      for(let j=0;j<50;j++){
+        const m=(a+b)/2,fm=f(m);
+        if(Math.abs(fm)<1e-12||Math.abs(b-a)<1e-12){roots.push(m);break;}
+        if(fa*fm<=0){b=m;fb=fm;}else{a=m;fa=fm;}
+      }
+    }
+    prev=cur;
+  }
+  // deduplicate
+  const out=[];
+  for(const r of roots){
+    if(!out.some(x=>Math.abs(x-r)<1e-7)) out.push(r);
+  }
+  return out.sort((a,b)=>a-b);
+}
+
+function buildSolText(intervals){
+  if(!intervals.length) return '∅  (nessuna soluzione reale)';
+  return intervals.map(([lo,hi,il,ih])=>{
+    const l=isFinite(lo)?fmt(lo):'-∞';
+    const r=isFinite(hi)?fmt(hi):'+∞';
+    const lb=il&&isFinite(lo)?'[':'(';
+    const rb=ih&&isFinite(hi)?']':')';
+    return `${lb}${l}, ${r}${rb}`;
+  }).join('  ∪  ');
+}
+
+function solve(){
+  const raw=document.getElementById('inp').value.trim();
+  if(!raw) return;
+
+  const ops=['<=','>=','<','>'];
+  let op,lhs,rhs;
+  for(const o of ops){
+    const i=raw.indexOf(o);
+    if(i!==-1){op=o;lhs=raw.slice(0,i).trim();rhs=raw.slice(i+o.length).trim();break;}
+  }
+  if(!op){showErr('Operatore non trovato. Usa >, <, >= oppure <=');return;}
+
+  // Preprocess: 2x -> 2*x, )(-> )*(
+  function prep(s){
+    return s
+      .replace(/(\d)\s*x/g,'$1*x')
+      .replace(/\)\s*\(/g,')*(')
+      .replace(/\)\s*x/g,')*x')
+      .replace(/x\s*\(/g,'x*(');
+  }
+  const exprStr=`(${prep(lhs)})-(${prep(rhs)})`;
+
+  let f;
+  try{ const node=math.parse(exprStr); f=x=>node.evaluate({x}); f(0); }
+  catch(e){showErr('Errore nel parsing: '+e.message);return;}
+
+  const steps=[];
+  let roots=[];
+  let intervals=[];
+
+  steps.push(`Riscrivi come: <code>f(x) = (${lhs}) − (${rhs}) ${op} 0</code>`);
+
+  // Detect approx linearity
+  const f0=f(0),f1=f(1),f2=f(2),f_1=f(-1);
+  const isLinear = Math.abs(f2-2*f1+f0)<1e-8 && Math.abs(f_1-2*f0+f1)<1e-8
+    && Math.abs(f(10)-f(0)-10*(f(1)-f(0)))<1e-6;
+
+  if(isLinear){
+    const a=f1-f0, b=f0;
+    steps.push(`Funzione lineare: <code>f(x) = ${fmt(a)}·x + ${fmt(b)}</code>`);
+    if(Math.abs(a)<1e-10){
+      const sat=checkOp(b,op);
+      if(sat){
+        const sol='x ∈ ℝ  (disequazione sempre vera)';
+        steps.push('Il coefficiente di x è 0 e la disequazione è verificata per tutti i valori reali.');
+        intervals=[[- Infinity,Infinity,false,false]];
+        showResult(steps,sol,false); renderGraph(f,[],intervals,op); return;
+      } else {
+        steps.push('Il coefficiente di x è 0 e la disequazione non è mai verificata.');
+        showResult(steps,'∅  (mai vera)',false); renderGraph(f,[],intervals,op); return;
+      }
+    }
+    const x0=-b/a;
+    roots=[x0];
+    steps.push(`Radice: <code>x₀ = ${fmt(x0)}</code>`);
+    const incl=op==='<='||op==='>=';
+    if(a>0){
+      steps.push(`Coefficiente positivo → f crescente.`);
+      if(op='>'){intervals=[[x0,Infinity,false,false]];}
+      else if(op==='>='){intervals=[[x0,Infinity,true,false]];}
+      else if(op==='<'){intervals=[[-Infinity,x0,false,false]];}
+      else{intervals=[[-Infinity,x0,false,true]];}
+    } else {
+      steps.push(`Coefficiente negativo → <strong>verso invertito</strong>.`);
+      if(op==='>'){intervals=[[-Infinity,x0,false,false]];}
+      else if(op==='>='){intervals=[[-Infinity,x0,false,true]];}
+      else if(op==='<'){intervals=[[x0,Infinity,false,false]];}
+      else{intervals=[[x0,Infinity,true,false]];}
+    }
+  } else {
+    steps.push(`Ricerca delle radici di <code>f(x) = 0</code> nell'intervallo [-50, 50]...`);
+    roots=findRoots(f,-50,50);
+    if(roots.length===0){
+      const sat=checkOp(f(0),op);
+      steps.push('Nessuna radice reale trovata: la funzione non cambia segno.');
+      if(sat){intervals=[[-Infinity,Infinity,false,false]];}
+      showResult(steps,sat?'x ∈ ℝ  (sempre vera)':'∅  (mai vera)',false);
+      renderGraph(f,[],intervals,op);return;
+    }
+    steps.push(`Radici trovate: ${roots.map(r=>`<code>x = ${fmt(r)}</code>`).join(', ')}`);
+    steps.push('Analisi del segno in ogni intervallo definito dalle radici...');
+
+    const bpts=[-Infinity,...roots,Infinity];
+    const incl=op==='<='||op==='>=';
+    for(let i=0;i<bpts.length-1;i++){
+      const lo=bpts[i],hi=bpts[i+1];
+      const mid=isFinite(lo)&&isFinite(hi)?(lo+hi)/2:isFinite(lo)?lo+1:isFinite(hi)?hi-1:0;
+      const v=f(mid);
+      const sat=checkOp(v,op);
+      if(sat){
+        const il=incl&&isFinite(lo);
+        const ih=incl&&isFinite(hi);
+        intervals.push([lo,hi,il,ih]);
+      }
+    }
+    // merge adjacent (shouldn't happen but safety)
+    if(incl && roots.length){
+      // roots themselves: tested via interval endpoints
+    }
+  }
+
+  const solText=buildSolText(intervals);
+  showResult(steps,solText,false);
+  renderGraph(f,roots,intervals,op);
+}
+
+function showErr(msg){
+  showResult([],msg,true);
+  document.getElementById('gpanel').classList.remove('vis');
+}
+
+function showResult(steps,sol,err){
+  const rp=document.getElementById('rpanel');
+  const sc=document.getElementById('steps');
+  const sb=document.getElementById('solbox');
+  const sv=document.getElementById('solv');
+
+  sc.innerHTML=steps.map((s,i)=>`<div class="step"><div class="sn">${i+1}</div><div class="st">${s}</div></div>`).join('');
+  sv.textContent=sol;
+  sb.className='sol-box'+(err?' err':'');
+  sb.querySelector('.sol-ico').textContent=err?'✗':'✓';
+  rp.classList.add('vis');
+}
+
+/* ─── GRAPH ─── */
+function renderGraph(f,roots,intervals,op){
+  const gc=document.getElementById('gc');
+  const nl=document.getElementById('nl');
+  const gp=document.getElementById('gpanel');
+  gp.classList.add('vis');
+
+  // Calculate view bounds
+  let viewLo=-10,viewHi=10;
+  if(roots.length){
+    const rmin=Math.min(...roots.filter(isFinite));
+    const rmax=Math.max(...roots.filter(isFinite));
+    viewLo=rmin-Math.max(5,Math.abs(rmax-rmin)*0.8);
+    viewHi=rmax+Math.max(5,Math.abs(rmax-rmin)*0.8);
+  }
+
+  drawFuncChart(gc,f,roots,intervals,op,viewLo,viewHi);
+  drawNumberLine(nl,roots,intervals,viewLo,viewHi);
+}
+
+function drawFuncChart(canvas,f,roots,intervals,op,xlo,xhi){
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-64||800;
+  const H=300;
+  canvas.width=W*dpr;
+  canvas.height=H*dpr;
+  canvas.style.width=W+'px';
+  canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+
+  // Sample
+  const N=600;
+  const pts=[];
+  for(let i=0;i<=N;i++){
+    const x=xlo+(xhi-xlo)*i/N;
+    const y=f(x);
+    pts.push({x,y:isFinite(y)?y:NaN});
+  }
+  const ys=pts.map(p=>p.y).filter(isFinite);
+  if(!ys.length) return;
+  let ylo=Math.min(...ys),yhi=Math.max(...ys);
+  const pad=(yhi-ylo)*0.15||1;
+  ylo-=pad; yhi+=pad;
+  if(yhi-ylo<0.01){ylo-=1;yhi+=1;}
+
+  const toX=x=>(x-xlo)/(xhi-xlo)*W;
+  const toY=y=>H-(y-ylo)/(yhi-ylo)*H;
+
+  // Background
+  ctx.fillStyle='#1a1a26';
+  ctx.fillRect(0,0,W,H);
+
+  // Shade solution intervals
+  for(const [lo,hi] of intervals){
+    const x1=toX(isFinite(lo)?lo:xlo);
+    const x2=toX(isFinite(hi)?hi:xhi);
+    ctx.fillStyle='rgba(0,229,160,0.08)';
+    ctx.fillRect(Math.max(0,x1),0,Math.min(W,x2)-Math.max(0,x1),H);
+  }
+
+  // Zero line
+  if(ylo<0 && yhi>0){
+    const zy=toY(0);
+    ctx.strokeStyle='rgba(255,255,255,0.12)';
+    ctx.lineWidth=1;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(0,zy);ctx.lineTo(W,zy);ctx.stroke();
+    ctx.setLineDash([]);
+    // label
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.font='10px IBM Plex Mono,monospace';
+    ctx.fillText('y=0',4,zy-4);
+  }
+
+  // Grid x axis ticks
+  ctx.strokeStyle='rgba(255,255,255,0.06)';
+  ctx.lineWidth=1;
+  const tickStep=Math.pow(10,Math.floor(Math.log10((xhi-xlo)/6)));
+  for(let x=Math.ceil(xlo/tickStep)*tickStep;x<=xhi;x+=tickStep){
+    const px=toX(x);
+    ctx.beginPath();ctx.moveTo(px,0);ctx.lineTo(px,H);ctx.stroke();
+    ctx.fillStyle='rgba(150,150,200,0.5)';
+    ctx.font='10px IBM Plex Mono,monospace';
+    ctx.fillText(fmt(x),px+2,H-4);
+  }
+
+  // Vertical x=0
+  if(xlo<0 && xhi>0){
+    const x0=toX(0);
+    ctx.strokeStyle='rgba(255,255,255,0.15)';
+    ctx.lineWidth=1;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(x0,0);ctx.lineTo(x0,H);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Curve (color based on sign)
+  ctx.lineWidth=2.5;
+  ctx.lineJoin='round';
+  let drawing=false;
+  ctx.beginPath();
+  for(let i=0;i<=N;i++){
+    const {x,y}=pts[i];
+    if(!isFinite(y)){drawing=false;continue;}
+    const px=toX(x),py=toY(y);
+    // Color: positive=accent, negative=red
+    const pos=y>=0;
+    if(!drawing){ctx.moveTo(px,py);drawing=true;}
+    else ctx.lineTo(px,py);
+  }
+  // Draw as gradient stroke - simplest: draw twice with clip
+  // Just use a single color for simplicity + glow
+  ctx.strokeStyle='#00e5ff';
+  ctx.shadowColor='#00e5ff';
+  ctx.shadowBlur=8;
+  ctx.stroke();
+  ctx.shadowBlur=0;
+
+  // Roots
+  for(const r of roots){
+    if(r<xlo||r>xhi) continue;
+    const px=toX(r),py=toY(0);
+    ctx.beginPath();
+    ctx.arc(px,py,5,0,Math.PI*2);
+    ctx.fillStyle='#ff4455';
+    ctx.shadowColor='#ff4455';
+    ctx.shadowBlur=10;
+    ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(200,200,255,0.8)';
+    ctx.font='11px IBM Plex Mono,monospace';
+    ctx.fillText('x='+fmt(r),px+8,py-6);
+  }
+
+  // Legend
+  ctx.fillStyle='rgba(0,229,160,0.15)';
+  ctx.fillRect(W-160,8,152,24);
+  ctx.fillStyle='#00e5a0';
+  ctx.font='10px IBM Plex Mono,monospace';
+  ctx.fillText('▒ zona soluzione',W-152,24);
+}
+
+function drawNumberLine(canvas,roots,intervals,xlo,xhi){
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-64||800;
+  const H=64;
+  canvas.width=W*dpr;
+  canvas.height=H*dpr;
+  canvas.style.width=W+'px';
+  canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+
+  ctx.fillStyle='#1a1a26';
+  ctx.fillRect(0,0,W,H);
+
+  const toX=x=>{
+    const lo=isFinite(xlo)?xlo:xlo,hi=isFinite(xhi)?xhi:xhi;
+    return (x-lo)/(hi-lo)*W;
+  };
+
+  const CY=H/2;
+
+  // Shade intervals
+  for(const [lo,hi,il,ih] of intervals){
+    const x1=toX(isFinite(lo)?lo:xlo-1);
+    const x2=toX(isFinite(hi)?hi:xhi+1);
+    ctx.fillStyle='rgba(0,229,160,0.25)';
+    ctx.fillRect(Math.max(0,x1),CY-10,Math.min(W,x2)-Math.max(0,x1),20);
+  }
+
+  // Main line
+  ctx.strokeStyle='rgba(255,255,255,0.3)';
+  ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,CY);ctx.lineTo(W,CY);ctx.stroke();
+
+  // Arrows
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.beginPath();ctx.moveTo(W,CY);ctx.lineTo(W-10,CY-5);ctx.lineTo(W-10,CY+5);ctx.closePath();ctx.fill();
+
+  // Roots on line
+  for(const r of roots){
+    if(r<xlo||r>xhi) continue;
+    const px=toX(r);
+    ctx.beginPath();
+    ctx.arc(px,CY,5,0,Math.PI*2);
+    ctx.fillStyle='#ff4455';
+    ctx.shadowColor='#ff4455';
+    ctx.shadowBlur=8;
+    ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(200,200,255,0.8)';
+    ctx.font='11px IBM Plex Mono,monospace';
+    ctx.textAlign='center';
+    ctx.fillText(fmt(r),px,CY+22);
+    ctx.textAlign='left';
+  }
+
+  // Interval endpoint markers
+  for(const [lo,hi,il,ih] of intervals){
+    for(const [xv,incl] of [[lo,il],[hi,ih]]){
+      if(!isFinite(xv)) continue;
+      if(xv<xlo||xv>xhi) continue;
+      const px=toX(xv);
+      ctx.beginPath();
+      ctx.arc(px,CY,6,0,Math.PI*2);
+      if(incl){ctx.fillStyle='#00e5a0';ctx.fill();}
+      else{ctx.strokeStyle='#00e5a0';ctx.lineWidth=2;ctx.stroke();}
+    }
+  }
+}
+</script>
+</body>
+</html>
